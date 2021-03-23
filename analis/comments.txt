@@ -1,0 +1,221 @@
+"""Первичная оценка данных"""
+
+import pandas as pd
+
+import matplotlib as mpl
+import re
+import csv
+
+
+data = pd.read_csv('games_a_copy.csv')
+
+"""
+В копии производим операции замены и прочего, чтобы не потерять исходные данные
+"""
+
+data_copy = data.copy()
+# df.info()
+"""
+ #   Column           Non-Null Count  Dtype
+---  ------           --------------  -----
+ 0   Name             16713 non-null  object
+ 1   Platform         16715 non-null  object
+ 2   Year_of_Release  16446 non-null  float64
+ 3   Genre            16713 non-null  object
+ 4   NA_sales         16715 non-null  float64
+ 5   EU_sales         16715 non-null  float64
+ 6   JP_sales         16715 non-null  float64
+ 7   Other_sales      16715 non-null  float64
+ 8   Critic_Score     8137 non-null   float64
+ 9   User_Score       10014 non-null  object
+ 10  Rating           9949 non-null   object
+"""
+
+# Чистые дубликаты отсутствуют
+# print(df.duplicated().sum())
+
+# print(df.columns)
+# ['Name', 'Platform', 'Year_of_Release', 'Genre', 'NA_sales', 'EU_sales',
+# 'JP_sales', 'Other_sales', 'Critic_Score', 'User_Score', 'Rating']
+data.set_axis(['name', 'platform', 'year_of_release', 'genre', 'na_sales', 'eu_sales',
+             'jp_sales', 'other_sales', 'critic_score', 'user_score', 'rating'],
+              axis='columns', inplace=True)
+data_copy.set_axis(['name', 'platform', 'year_of_release', 'genre', 'na_sales', 'eu_sales',
+             'jp_sales', 'other_sales', 'critic_score', 'user_score', 'rating'],
+              axis='columns', inplace=True)
+new_name_col = ('name', 'platform', 'year_of_release', 'genre', 'na_sales', 'eu_sales',
+                'jp_sales', 'other_sales', 'critic_score', 'user_score', 'rating')
+
+# print(data.isna().sum()) # посчитать пропущенные и неясные значения
+""""
+name                  2
+platform              0
+year_of_release     269
+genre                 2
+na_sales              0
+eu_sales              0
+jp_sales              0
+other_sales           0
+critic_score       8578
+user_score         6701
+rating             6766
+"""
+
+# Пространство имен для обработки датасета по частям
+games_columns = ['name', 'platform', 'year_of_release', 'genre', 'rating']
+sales_columns = ['name', 'na_sales', 'eu_sales', 'jp_sales', 'other_sales']
+score_columns = ['name', 'critic_score', 'user_score', 'rating']
+df_games = data.loc[:, games_columns]
+df_sales = data.loc[:, sales_columns]
+df_score = data.loc[:, score_columns]
+df_all = [df_score, df_sales, df_games]
+# print(df_games.head(5))
+# print(df_sales.head(5))
+# print(df_score.head(15))
+
+
+def get_games_info():
+    for column in games_columns:
+        print(f'Уникальных значений {column}: {len(data[column].unique())}. '
+              f'Всего значений: {len(data[column])}.'
+              f'Пустых значений: {data[column].isna().sum()}')
+        if len(data[column].unique()) < 50:
+            print(data[column].unique())
+
+
+"""
+Уникальных значений name: 11560. Всего значений: 16715.Пустых значений: 2
+Уникальных значений platform: 31. Всего значений: 16715.Пустых значений: 0
+['Wii' 'NES' 'GB' 'DS' 'X360' 'PS3' 'PS2' 'SNES' 'GBA' 'PS4' '3DS' 'N64'
+ 'PS' 'XB' 'PC' '2600' 'PSP' 'XOne' 'WiiU' 'GC' 'GEN' 'DC' 'PSV' 'SAT'
+ 'SCD' 'WS' 'NG' 'TG16' '3DO' 'GG' 'PCFX']
+Уникальных значений year_of_release: 38. Всего значений: 16715.Пустых значений: 269
+[2006. 1985. 2008. 2009. 1996. 1989. 1984. 2005. 1999. 2007. 2010. 2013.
+ 2004. 1990. 1988. 2002. 2001. 2011. 1998. 2015. 2012. 2014. 1992. 1997.
+ 1993. 1994. 1982. 2016. 2003. 1986. 2000.   nan 1995. 1991. 1981. 1987.
+ 1980. 1983.]
+Уникальных значений genre: 13. Всего значений: 16715.Пустых значений: 2
+['Sports' 'Platform' 'Racing' 'Role-Playing' 'Puzzle' 'Misc' 'Shooter'
+ 'Simulation' 'Action' 'Fighting' 'Adventure' 'Strategy' nan]
+Уникальных значений rating: 9. Всего значений: 16715.Пустых значений: 6766
+['E' nan 'M' 'T' 'E10+' 'K-A' 'AO' 'EC' 'RP']
+"""
+# print(data['genre'].value_counts().sort_values(ascending=False))
+# print(data.groupby('platform')['na_sales'].describe())
+"""
+           count      mean       std   min     25%    50%     75%    max
+platform
+2600       133.0  0.681203  0.854741  0.07  0.2800  0.430  0.7200   7.28
+3DO          3.0  0.000000  0.000000  0.00  0.0000  0.000  0.0000   0.00
+3DS        520.0  0.160558  0.536181  0.00  0.0000  0.010  0.1200   5.28
+DC          52.0  0.104423  0.311979  0.00  0.0000  0.000  0.0000   1.26
+DS        2151.0  0.177778  0.533684  0.00  0.0000  0.060  0.1700  11.28
+GB          98.0  1.166531  3.018756  0.00  0.0000  0.000  0.9150  23.20
+GBA        822.0  0.228151  0.443121  0.00  0.0300  0.100  0.2500   6.06
+GC         556.0  0.240036  0.423270  0.00  0.0500  0.110  0.2600   4.41
+GEN         29.0  0.725862  1.099638  0.00  0.0000  0.000  1.0300   4.47
+GG           1.0  0.000000       NaN  0.00  0.0000  0.000  0.0000   0.00
+N64        319.0  0.435799  0.797725  0.00  0.0650  0.180  0.4450   6.91
+NES         98.0  1.285102  4.080581  0.00  0.0450  0.405  0.7625  29.08
+NG          12.0  0.000000  0.000000  0.00  0.0000  0.000  0.0000   0.00
+PC         974.0  0.097053  0.352855  0.00  0.0000  0.000  0.0200   4.03
+PCFX         1.0  0.000000       NaN  0.00  0.0000  0.000  0.0000   0.00
+PS        1197.0  0.281136  0.534832  0.00  0.0200  0.080  0.2600   4.02
+PS2       2161.0  0.270171  0.579904  0.00  0.0100  0.090  0.2500   9.43
+PS3       1331.0  0.295635  0.578589  0.00  0.0100  0.120  0.3200   7.02
+PS4        392.0  0.277398  0.583723  0.00  0.0075  0.060  0.2600   6.03
+PSP       1209.0  0.090298  0.205398  0.00  0.0000  0.000  0.1000   2.90
+PSV        430.0  0.029256  0.074932  0.00  0.0000  0.000  0.0200   0.71
+SAT        173.0  0.004162  0.032850  0.00  0.0000  0.000  0.0000   0.34
+SCD          6.0  0.166667  0.408248  0.00  0.0000  0.000  0.0000   1.00
+SNES       239.0  0.256192  1.052137  0.00  0.0000  0.000  0.0000  12.78
+TG16         2.0  0.000000  0.000000  0.00  0.0000  0.000  0.0000   0.00
+WS           6.0  0.000000  0.000000  0.00  0.0000  0.000  0.0000   0.00
+Wii       1320.0  0.376439  1.527578  0.00  0.0500  0.130  0.3200  41.36
+WiiU       147.0  0.259184  0.493981  0.00  0.0300  0.110  0.2500   3.15
+X360      1262.0  0.477393  1.034286  0.00  0.0800  0.170  0.4500  15.00
+XB         824.0  0.226566  0.401293  0.00  0.0500  0.110  0.2500   6.82
+XOne       247.0  0.377004  0.630618  0.00  0.0300  0.120  0.3850   4.59
+"""
+
+"""
+Смотрим пропуски значений в столбце name. Данные показывают, что в этих столбцах нет значительной части
+сведений. Имеющиеся сведения, по существу, значимы только для статистики по приставке "GEN", которая сегодня
+не используется, и, в силу этого, удаление строк мало повлияет на принятие решения о развитии индустрии.
+"""
+# for el in df_all:
+#     print(el[df_games['name'].isna()])
+"""
+      name  critic_score user_score rating
+659    NaN           NaN        NaN    NaN
+14244  NaN           NaN        NaN    NaN
+name  na_sales  eu_sales  jp_sales  other_sales
+659    NaN      1.78      0.53      0.00         0.08
+14244  NaN      0.00      0.00      0.03         0.00
+      name platform  year_of_release genre rating
+659    NaN      GEN           1993.0   NaN    NaN
+14244  NaN      GEN           1993.0   NaN    NaN
+"""
+# print(df_sales[df_games['platform'] == 'GEN'])
+""""
+                                                    name  ...  other_sales
+145                                 Sonic the Hedgehog 2  ...         0.19
+257                                   Sonic the Hedgehog  ...         0.13
+564                                        Mortal Kombat  ...         0.09
+588                                      Streets of Rage  ...         0.08
+659                                                  NaN  ...         0.08...
+"""
+
+# Убираем пустые значения.
+data_copy.dropna(subset=['name'], inplace=True)
+
+
+# Анализируем пропуски данных в столбце 'year_of_release'
+games_for_req = (data_copy['name'][data_copy['year_of_release'].isna()])
+view_years_err = data_copy.loc[:, ['name', 'year_of_release', 'genre', 'platform',
+                                   'na_sales', 'eu_sales', 'jp_sales', 'other_sales']]\
+    .query('name in @games_for_req')\
+    .sort_values('name')
+# print(view_years_err)
+
+"""
+Значительная часть пропусков значений по годам  релиза- это дублирующие названия игр.
+Частью - год находится в столбце name.
+Данные столбца необходимо привести к типу int
+Исправим.
+"""
+# Превращение столбца года релиза в int с сохранением non
+data['year_of_release'] = data['year_of_release'].astype(str, errors='ignore')\
+    .apply(lambda x: ''.join(re.findall(r'\d\d\d\d', x)) if re.findall(r'\d\d\d\d.\d', x) else np.nan)
+
+# name_with_date_1 = data.query('name in @games_for_req and year_of_release != 0')
+# first_list_name = [[n, y] for n, y in zip(list(name_with_date_1['name']), list(name_with_date_1['year_of_release']))]
+# print(first_list_name)
+# name_with_year = data['name'].apply(lambda x: re.findall(r'\d\d\d\d', x) if re.findall(r'\d\d\d\d, x) else np.nan)
+data_y = data.query('year_of_release.isna() and @m in name')
+print(data_y)
+
+
+
+
+
+# data_copy['year_of_release'] = pd.to_numeric(data_copy['year_of_release'], downcast='unsigned')
+good_year = pd.to_numeric(data_copy['year_of_release'], downcast='integer')
+# data_copy['score'] = pd.to_numeric(data_copy['user_score'], downcast='float', errors='ignore')
+print(good_year.head())
+
+# for name in games_for_req:
+#     if re.findall(r'\d'*4, name):
+#         year = int(''.join(re.findall(r'\d' * 4, name)))
+#         print(f'{name}: {year}')
+#         # data_copy['year_of_release']
+#
+# print(data_copy.info())
+            # data_copy['year_of_release'] = year
+# print(data_copy['year_of_release'].isna().count())
+    # elif data_copy['name'] in games_for_req:
+
+
+def write_df():
+    data_copy.to_csv('year_err.csv', encoding='utf-8')
+# write_df()
