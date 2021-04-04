@@ -26,8 +26,8 @@ df_sales = data.loc[:, sales_columns]
 df_score = data.loc[:, score_columns]
 df_all = [df_score, df_sales, df_games]
 
-for dtype in ['float', 'int', 'object']:
-    selected_dtype = data.select_dtypes(include=[dtype])
+# for dtype in ['float', 'int', 'object']:
+#     selected_dtype = data.select_dtypes(include=[dtype])
 
 
 def get_info(list):
